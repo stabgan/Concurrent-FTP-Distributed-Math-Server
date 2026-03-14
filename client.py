@@ -1,59 +1,92 @@
-import socket                
+import socket
 
-s = socket.socket() 
-port = 12348           
-s.connect(('localhost', port)) 
 
-def math():
-    s.send(b'1')
-    data = input("Enter mathematical operation :")
-    s.send(str(data).encode())
-    r = s.recv(1024).decode()
-    print("Result is :", r) 
-    s.close()
+def connect():
+    """Create and return a new socket connected to the server."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect(("localhost", 12348))
+    return s
 
-def ftp():
-    s.send(b'2')
-    
-    fname = input("Enter Filename :")
-    f = open (fname, "rb")
-    l = f.read(1024)
-    while (l):
-        print("sending....")
-        s.send(l)
-        l = f.read(1024)
-    f.close()
-    s.close()
 
-def ftp2():
-    s.send(b'3')
-    
-    f = open("server2client.txt",'wb')
-    l = s.recv(1024)
-    while (l):
-        f.write(l)
-        l = s.recv(1024)
-    f.close()
-    print("Success")
-    s.close()
-
-while True :
-
-    opt = int(input("1. Mathematical Operation - press 1\n2. Send File - press 2\n3. Recieve file - press 3\n4. Quit - press 4\n----> "))
-    if opt == 1 :
-       math()
-       break
-    elif opt == 2:
-       ftp()
-       break
-    elif opt == 3:
-       ftp2()
-       break
-    else :
-        break
+def math_operation():
+    """Send a math expression to the server and print the result."""
+    s = connect()
+    try:
+        s.sendall(b"1")
+        expr = input("Enter mathematical expression (e.g. 3+5, 10*2, 2^8): ")
+        s.sendall(expr.encode())
+        result = s.recv(1024).decode()
+        print(f"Result: {result}")
+    finally:
         s.close()
 
-    
+
+def send_file():
+    """Send a file to the server (client → server)."""
+    s = connect()
+    try:
+        s.sendall(b"2")
+        fname = input("Enter filename to send: ")
+        try:
+            with open(fname, "rb") as f:
+                while True:
+                    chunk = f.read(1024)
+                    if not chunk:
+                        break
+                    print("Sending...")
+                    s.sendall(chunk)
+            print("File sent successfully.")
+        except FileNotFoundError:
+            print(f"Error: File '{fname}' not found")
+    finally:
+        s.close()
 
 
-   
+def receive_file():
+    """Receive a file from the server (server → client)."""
+    s = connect()
+    try:
+        s.sendall(b"3")
+        with open("server2client.txt", "wb") as f:
+            while True:
+                data = s.recv(1024)
+                if not data:
+                    break
+                f.write(data)
+        print("File received successfully.")
+    finally:
+        s.close()
+
+
+def main():
+    menu = (
+        "\n--- Menu ---\n"
+        "1. Mathematical Operation\n"
+        "2. Send File to Server\n"
+        "3. Receive File from Server\n"
+        "4. Quit\n"
+        "----> "
+    )
+
+    while True:
+        try:
+            opt = int(input(menu))
+        except ValueError:
+            print("Please enter a valid number.")
+            continue
+
+        if opt == 1:
+            math_operation()
+        elif opt == 2:
+            send_file()
+        elif opt == 3:
+            receive_file()
+        elif opt == 4:
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option. Try again.")
+
+
+if __name__ == "__main__":
+    main()
